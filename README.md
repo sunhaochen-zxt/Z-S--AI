@@ -7,7 +7,6 @@ Z&S-AI 提供了一个可视化的角色卡编辑器和聊天界面，让你可�
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?style=flat&logo=cplusplus)
 ![Qt6](https://img.shields.io/badge/Qt-6-41CD52?style=flat&logo=qt)
 ![CMake](https://img.shields.io/badge/CMake-%E2%89%A53.16-064F8C?style=flat&logo=cmake)
-![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
 
@@ -166,7 +165,7 @@ export DEEPSEEK_API_KEY="sk-xxxxxxxxxxxxxxxx"
 
 ## 📝 许可
 
-本项目基于 MIT 协议开源，详见 [LICENSE](LICENSE)。
+本项目基于 GPL 协议开源，详见 [LICENSE](LICENSE)。
 
 ## 💡 致谢
 
