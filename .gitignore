@@ -1,0 +1,8 @@
+build/
+CMakeFiles/
+*.o
+*.d
+a.out
+example_roles/
+AGENTS.md
+CLAUDE.md
