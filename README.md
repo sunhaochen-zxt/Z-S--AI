@@ -1,6 +1,8 @@
 # Z&S-AI
 
 **一个基于 Qt6 + DeepSeek API 的角色扮演对话桌面工具。**
+ > 开发者碎碎念：开发者是学生，维护项目的时间不多，项目的GUI基本是AI写的，提示词的拼接逻辑是自己完成的，此项目仅图一乐，安全性稳定性难以保证，请勿用于工作生产。
+ > ⚠️ **当前版本将 API Key 以明文形式存储在 `role.conf` 文件中。**
 
 Z&S-AI 提供了一个可视化的角色卡编辑器和聊天界面，让你可以创建自定义的 AI 角色，并与它们进行沉浸式的角色扮演对话。
 
@@ -10,7 +12,7 @@ Z&S-AI 提供了一个可视化的角色卡编辑器和聊天界面，让你可�
 
 ---
 
-## ✨ 功能
+##  功能
 
 - **角色卡编辑器** — 在图形界面中填写角色名称、性格、背景故事、说话风格、目标等信息
 - **场景与时间设定** — 自定义当前场景（如古城废墟、星际飞船）和时间（黄昏、公元3024年）
@@ -22,11 +24,7 @@ Z&S-AI 提供了一个可视化的角色卡编辑器和聊天界面，让你可�
 - **API 设置面板** — 可视化配置 API Key、模型、Base URL 等参数
 - **系统提示词预览** — 随时查看生成的完整 system prompt，方便调试
 
-## 🖼️ 截图
-
-> _（截图待补充）_
-
-## 🚀 快速开始
+##  快速开始
 
 ### 依赖
 
@@ -62,7 +60,7 @@ export DEEPSEEK_API_KEY="sk-xxxxxxxxxxxxxxxx"
 
 生成的可执行文件名为 `role`，默认配置文件为同目录下的 `role.conf`。
 
-## 🎮 使用指南
+##  使用指南
 
 ### 第一步：配置 API
 
@@ -93,7 +91,7 @@ export DEEPSEEK_API_KEY="sk-xxxxxxxxxxxxxxxx"
 
 对话会自动保存到 `role.conf`，下次启动时恢复。
 
-## 🧠 系统提示词结构
+##  系统提示词结构
 
 程序会自动将角色卡信息组装成结构化的 system prompt：
 
@@ -115,7 +113,7 @@ export DEEPSEEK_API_KEY="sk-xxxxxxxxxxxxxxxx"
 
 可在 **工具 → 查看系统提示词** 中预览最终生成的 prompt。
 
-## 🏗️ 项目架构
+## 项目架构
 
 ```
 ├── main.cpp                  # 应用程序入口
@@ -139,14 +137,14 @@ export DEEPSEEK_API_KEY="sk-xxxxxxxxxxxxxxxx"
         对话气泡显示 + auto-save
 ```
 
-## ⚙️ 配置文件格式
+##  配置文件格式
 
 配置文件使用自定义二进制安全文本格式（`role.conf`）：
 - 键值对以换行分隔，值用 `\x01` … `\x02` 定界
 - `\x03` 为转义字符
 - 分为 `[ai_content]` 和 `[question_st]` 两个区段
 
-## 🔒 安全警告：API Key 明文存储
+##  安全警告：API Key 明文存储
 
 > ⚠️ **当前版本将 API Key 以明文形式存储在 `role.conf` 文件中。**
 
@@ -163,11 +161,7 @@ export DEEPSEEK_API_KEY="sk-xxxxxxxxxxxxxxxx"
 3. 定期检查 `role.conf` 是否被意外泄露
 4. 后续计划引入加密存储或系统密钥链支持
 
-## 📝 许可
+##  许可
 
 本项目基于 GPL 协议开源，详见 [LICENSE](LICENSE)。
 
-## 💡 致谢
-
-- 基于 [DeepSeek API](https://platform.deepseek.com/) 构建
-- 使用 Qt6 框架开发桌面图形界面
