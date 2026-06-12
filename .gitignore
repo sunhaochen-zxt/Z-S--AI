@@ -4,6 +4,7 @@ CMakeFiles/
 *.d
 a.out
 example_roles/
+CMakeLists.txt.user
 AGENTS.md
 CLAUDE.md
 API使用方法.md
