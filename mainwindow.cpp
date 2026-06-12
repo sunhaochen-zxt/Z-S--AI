@@ -1,20 +1,21 @@
 // ====================================================================
-// mainwindow.cpp — Z&S-AI 主窗口实现
+// mainwindow.cpp — Z&S-AI 主窗口（纯 UI 层）
 //
 // 文件结构（自上而下）：
 //   1. HTML 转义工具函数
-//   2. 构造函数 & 界面构建
-//   3. 角色卡标签页
-//   4. 对话标签页
-//   5. 菜单 & 对话框
-//   6. 数据同步（控件 <-> 结构体）
-//   7. 发送消息（核心流程）
-//   8. 文件操作（保存 / 加载）
-//   9. 其他槽函数
+//   2. 构造函数
+//   3. 样式表
+//   4. 界面构建（setup_ui / setup_menu / create_*_tab）
+//   5. 数据同步（控件 ↔ Backend 桥梁）
+//   6. 对话显示（append_chat / load_history_to_chat）
+//   7. 槽函数（全部委托 Backend 处理业务逻辑）
+//   8. Backend 信号响应
+//
+// 所有的数据持有、API 调用、JSON 构建、文件读写均在 backend.cpp 中。
 // ====================================================================
 
 #include "mainwindow.h"
-#include "load_History&config.h"          // save_config / load_config
+#include "backend.h"
 
 #include <QScrollArea>
 #include <QFormLayout>
@@ -28,10 +29,7 @@
 #include <QLabel>
 #include <QGroupBox>
 #include <QStatusBar>
-#include <QApplication>                  // qApp 宏
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonArray>
+#include <QApplication>
 
 // ====================================================================
 // HTML 转义：防止用户输入中的 < > & " 破坏 HTML 标签结构
@@ -55,37 +53,32 @@ static QString html_escape(const QString &text) {
 // ====================================================================
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
+    , m_backend(new Backend(this))
 {
     setWindowTitle("Z&S-AI");
     resize(1100, 720);
 
-    // ---- 数据初始化 ----
+    // 全局样式表
+    setup_stylesheet();
 
-    // 从环境变量读取 API Key（如果存在）
-    const char *env_key = std::getenv("DEEPSEEK_API_KEY");
-    if (env_key)
-        m_question.api_key = env_key;
+    // 连接 Backend 信号
+    setup_backend_connections();
 
-    // 默认值
-    m_question.base_url          = "https://api.deepseek.com";
-    m_question.model             = "deepseek-v4-flash";
-    m_question.reasoning_effort  = "medium";
+    // 底部状态栏
+    update_status_bar();
 
-    // HTTP 客户端（Qt 内置，异步非阻塞）
-    m_network = new QNetworkAccessManager(this);
+    // 界面构建
+    setup_ui();
+    setup_menu();
 
-    // 尝试从默认配置文件恢复上次工作状态
-    load_config("role.conf", m_content, m_question);
+    // 将加载的对话历史回显到聊天面板
+    load_history_to_chat();
+}
 
-    // ================================================================
-    // 全局样式表（现代开源软件风格：VS Code / GitHub / Obsidian 融合）
-    //
-    // 设计理念：
-    //   - 暗色侧栏 + 浅灰色内容区，层级清晰
-    //   - 少用边框、多用背景色差和阴影来分隔区域
-    //   - 大圆角、柔和过渡、充裕留白
-    //   - 系统原生字体，仅在等宽场景用 Monospace
-    // ================================================================
+// ====================================================================
+// 全局样式表
+// ====================================================================
+void MainWindow::setup_stylesheet() {
     setStyleSheet(R"(
         /* ---- 全局 ---- */
         QMainWindow {
@@ -348,16 +341,16 @@ MainWindow::MainWindow(QWidget *parent)
             color: #d0d7de;
         }
     )");
+}
 
-    // ---- 底部状态栏 ----
-    update_status_bar();
-
-    // ---- 界面构建 ----
-    setup_ui();
-    setup_menu();
-
-    // 将加载的对话历史回显到聊天面板
-    load_history_to_chat();
+// ====================================================================
+// 连接 Backend 信号 → UI 槽
+// ====================================================================
+void MainWindow::setup_backend_connections() {
+    connect(m_backend, &Backend::responseReady,  this, &MainWindow::on_backend_response);
+    connect(m_backend, &Backend::errorOccurred,  this, &MainWindow::on_backend_error);
+    connect(m_backend, &Backend::busyChanged,    this, &MainWindow::on_backend_busy_changed);
+    connect(m_backend, &Backend::dataChanged,    this, &MainWindow::update_status_bar);
 }
 
 // ====================================================================
@@ -560,58 +553,54 @@ QWidget* MainWindow::create_chat_tab() {
 }
 
 // ====================================================================
-// 将控件上的值写入 ai_content 结构体
-// 在保存 / 发送前调用，确保数据最新
+// 将控件上的值写入 Backend::content()
 // ====================================================================
 void MainWindow::sync_fields_to_struct() {
-    m_content.name               = m_name->text().toStdString();
-    m_content.personality        = m_personality->text().toStdString();
-    m_content.background         = m_background->toPlainText().toStdString();
-    m_content.speaking_style     = m_speaking_style->text().toStdString();
-    m_content.goals              = m_goals->text().toStdString();
-    m_content.scene              = m_scene->text().toStdString();
-    m_content.time               = m_time->text().toStdString();
-    m_content.memory             = m_memory->toPlainText().toStdString();
-    m_content.example_dialogues  = m_example_dialogues->toPlainText().toStdString();
-    m_content.extra_commend      = m_extra_commend->toPlainText().toStdString();
-    m_content.frankenstein_state = m_frankenstein_state->toPlainText().toStdString();
-    // history_communication 由对话系统维护，不在此处覆盖
+    auto &c = m_backend->content();
+    c.name               = m_name->text().toStdString();
+    c.personality        = m_personality->text().toStdString();
+    c.background         = m_background->toPlainText().toStdString();
+    c.speaking_style     = m_speaking_style->text().toStdString();
+    c.goals              = m_goals->text().toStdString();
+    c.scene              = m_scene->text().toStdString();
+    c.time               = m_time->text().toStdString();
+    c.memory             = m_memory->toPlainText().toStdString();
+    c.example_dialogues  = m_example_dialogues->toPlainText().toStdString();
+    c.extra_commend      = m_extra_commend->toPlainText().toStdString();
+    c.frankenstein_state = m_frankenstein_state->toPlainText().toStdString();
 }
 
 // ====================================================================
-// 将 ai_content 结构体的值写回到控件
-// 在加载配置文件后调用
+// 将 Backend::content() 的值写回到控件
 // ====================================================================
 void MainWindow::sync_struct_to_fields() {
-    m_name->setText(QString::fromStdString(m_content.name));
-    m_personality->setText(QString::fromStdString(m_content.personality));
-    m_background->setPlainText(QString::fromStdString(m_content.background));
-    m_speaking_style->setText(QString::fromStdString(m_content.speaking_style));
-    m_goals->setText(QString::fromStdString(m_content.goals));
-    m_scene->setText(QString::fromStdString(m_content.scene));
-    m_time->setText(QString::fromStdString(m_content.time));
-    m_memory->setPlainText(QString::fromStdString(m_content.memory));
-    m_example_dialogues->setPlainText(QString::fromStdString(m_content.example_dialogues));
-    m_extra_commend->setPlainText(QString::fromStdString(m_content.extra_commend));
-    m_frankenstein_state->setPlainText(QString::fromStdString(m_content.frankenstein_state));
+    const auto &c = m_backend->content();
+    m_name->setText(QString::fromStdString(c.name));
+    m_personality->setText(QString::fromStdString(c.personality));
+    m_background->setPlainText(QString::fromStdString(c.background));
+    m_speaking_style->setText(QString::fromStdString(c.speaking_style));
+    m_goals->setText(QString::fromStdString(c.goals));
+    m_scene->setText(QString::fromStdString(c.scene));
+    m_time->setText(QString::fromStdString(c.time));
+    m_memory->setPlainText(QString::fromStdString(c.memory));
+    m_example_dialogues->setPlainText(QString::fromStdString(c.example_dialogues));
+    m_extra_commend->setPlainText(QString::fromStdString(c.extra_commend));
+    m_frankenstein_state->setPlainText(QString::fromStdString(c.frankenstein_state));
 }
 
 // ====================================================================
-// 将 history_communication 中的对话记录回显到聊天面板
-// 格式：每行以 "User: " 或 "Assistant: " 开头标记新消息，
-//       不以这些前缀开头的行视为上一条消息的续行（多行回复支持）
+// 将 Backend::content().history_communication 回显到聊天面板
 // ====================================================================
 void MainWindow::load_history_to_chat() {
     m_chat_display->clear();
 
-    std::stringstream ss(m_content.history_communication);
+    std::stringstream ss(m_backend->content().history_communication);
     std::string line;
     std::string pending_role;
     std::string pending_text;
 
     auto flush_pending = [&]() {
         if (!pending_role.empty() && !pending_text.empty()) {
-            // 去掉末尾多余的换行
             while (!pending_text.empty() && pending_text.back() == '\n')
                 pending_text.pop_back();
             append_chat(QString::fromStdString(pending_role),
@@ -622,7 +611,6 @@ void MainWindow::load_history_to_chat() {
     };
 
     while (std::getline(ss, line)) {
-        // 检查是否为新消息的起始行
         if (line.rfind("User: ", 0) == 0) {
             flush_pending();
             pending_role = "User";
@@ -632,15 +620,13 @@ void MainWindow::load_history_to_chat() {
             pending_role = "AI";
             pending_text = line.substr(11);
         } else {
-            // 续行：拼接到上一条消息（支持多段落 AI 回复）
             if (!pending_text.empty()) pending_text += '\n';
             pending_text += line;
         }
     }
     flush_pending();
 
-    // 根据是否有 API Key 启用/禁用发送按钮
-    m_send_btn->setEnabled(!m_question.api_key.empty());
+    m_send_btn->setEnabled(m_backend->hasApiKey());
 }
 
 // ====================================================================
@@ -700,173 +686,45 @@ void MainWindow::append_chat(const QString &role, const QString &text) {
 // 更新状态栏显示
 // ====================================================================
 void MainWindow::update_status_bar() {
-    QString api_status = m_question.api_key.empty() ? "🔒 API Key 未配置" : "🔑 API 已就绪";
+    QString api_status = m_backend->hasApiKey() ? "🔑 API 已就绪" : "🔒 API Key 未配置";
     statusBar()->showMessage(
         QString("  %1  |  📦 %2  |  Z&S-AI")
-            .arg(api_status,
-                 QString::fromStdString(m_question.model)));
+            .arg(api_status, m_backend->modelDisplayName()));
 }
 
 // ====================================================================
-// on_send — 核心流程
-// 1. 读取控件、同步 ai_content
-// 2. 追加 User 消息到历史和显示
-// 3. 构建 system prompt（调用 content_creat）
-// 4. 构建 JSON 请求体
-// 5. 异步 POST 到 DeepSeek API
-// 6. 收到响应后解析 content，追加到历史和显示，自动保存
+// on_send — 发送按钮 / Enter 键响应
+// 只负责 UI 层：取文本 → 显示气泡 → 清空输入 → 委托 Backend
+// AI 回复和错误由 Backend 信号异步驱动
 // ====================================================================
 void MainWindow::on_send() {
-    // ------ 防重复提交 ------
-    if (m_is_sending) return;
+    if (m_backend->isBusy()) return;
 
-    // 获取输入文本
     QString text = m_chat_input->text().trimmed();
     if (text.isEmpty()) return;
 
-    // ------ 检查 API Key ------
-    if (m_question.api_key.empty()) {
+    if (!m_backend->hasApiKey()) {
         QMessageBox::warning(this, "API Key 未设置",
             "请先通过「设置 → API 设置」配置 API Key，\n"
             "或设置环境变量 DEEPSEEK_API_KEY。");
         return;
     }
 
-    // ------ 准备数据 ------
-    sync_fields_to_struct();                    // 控件 → 结构体
+    // 控件值 → Backend 数据（同步角色卡最新修改）
+    sync_fields_to_struct();
 
-    // 追加 User 消息到 history_communication
-    m_content.history_communication += "User: " + text.toStdString() + "\n";
-
-    // 显示到聊天面板
+    // 显示用户气泡
     append_chat("User", text);
 
     // 清空输入框
     m_chat_input->clear();
 
-    // ------ 构建 system prompt ------
-    std::string system_prompt = content_creat(m_content);
-
-    // ------ 构建 JSON 请求体 ------
-    QJsonObject root;
-
-    // 模型名
-    root["model"] = QString::fromStdString(m_question.model);
-
-    // messages 数组：[system, user]
-    QJsonArray messages;
-    {
-        QJsonObject sys;
-        sys["role"]    = "system";
-        sys["content"] = QString::fromStdString(system_prompt);
-        messages.append(sys);
-    }
-    {
-        QJsonObject usr;
-        usr["role"]    = "user";
-        usr["content"] = text;
-        messages.append(usr);
-    }
-    root["messages"] = messages;
-    root["stream"]   = false;
-
-    // reasoning_effort（空串表示不发送此字段）
-    if (!m_question.reasoning_effort.empty())
-        root["reasoning_effort"] = QString::fromStdString(m_question.reasoning_effort);
-
-    // extra_body → thinking（DeepSeek 特有参数）
-    if (!m_question.extra_body.thinking_type.empty()) {
-        QJsonObject thinking;
-        thinking["type"] = QString::fromStdString(m_question.extra_body.thinking_type);
-        QJsonObject extra;
-        extra["thinking"] = thinking;
-        root["extra_body"] = extra;
-    }
-
-    QByteArray json_data = QJsonDocument(root).toJson(QJsonDocument::Compact);
-
-    // ------ 构建 HTTP 请求 ------
-    QString url = QString::fromStdString(m_question.base_url);
-    if (!url.endsWith('/')) url += '/';
-    url += "chat/completions";
-
-    QNetworkRequest req{QUrl(url)};
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    req.setRawHeader("Authorization", ("Bearer " + m_question.api_key).c_str());
-
-    // ------ 防重复 & UI 反馈 ------
-    m_is_sending = true;
-    m_chat_input->setEnabled(false);
-    m_send_btn->setEnabled(false);
-    m_send_btn->setText("发送中…");
-    statusBar()->showMessage("  ⏳ 等待 AI 回复中……");
-
-    // ------ 异步 POST ------
-    QNetworkReply *reply = m_network->post(req, json_data);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        // 清理 reply 对象
-        reply->deleteLater();
-
-        // 恢复 UI
-        m_is_sending = false;
-        m_chat_input->setEnabled(true);
-        m_send_btn->setText("发送");
-        m_send_btn->setEnabled(!m_question.api_key.empty());
-
-        // ---- 处理网络错误 ----
-        if (reply->error() != QNetworkReply::NoError) {
-            append_chat("网络错误", reply->errorString());
-            update_status_bar();
-            return;
-        }
-
-        // ---- 解析 JSON 响应 ----
-        QByteArray resp_data = reply->readAll();
-        QJsonParseError parse_err;
-        QJsonDocument doc = QJsonDocument::fromJson(resp_data, &parse_err);
-
-        if (parse_err.error != QJsonParseError::NoError) {
-            append_chat("解析错误",
-                QString("JSON 解析失败：%1").arg(parse_err.errorString()));
-            update_status_bar();
-            return;
-        }
-
-        QJsonObject obj = doc.object();
-
-        // ---- 检查 API 层错误 ----
-        if (obj.contains("error")) {
-            QJsonObject err_obj = obj["error"].toObject();
-            QString msg = err_obj["message"].toString();
-            append_chat("API 错误", msg.isEmpty() ? "(未知错误)" : msg);
-            update_status_bar();
-            return;
-        }
-
-        // ---- 提取 assistant 回复 ----
-        QJsonArray choices = obj["choices"].toArray();
-        if (choices.isEmpty()) {
-            append_chat("响应错误", "API 返回了空的 choices 数组");
-            update_status_bar();
-            return;
-        }
-
-        QString content = choices[0].toObject()["message"].toObject()["content"].toString();
-
-        // ---- 显示 & 保存 ----
-        append_chat("AI", content);
-
-        m_content.history_communication += "Assistant: " + content.toStdString() + "\n";
-
-        // 自动保存到默认配置文件
-        save_config("role.conf", m_content, m_question);
-        update_status_bar();
-    });
+    // 委托 Backend 发送（异步，结果通过信号返回）
+    m_backend->sendMessage(text);
 }
 
 // ====================================================================
 // 保存配置
-// 先同步控件值，再用 QFileDialog 选路径保存
 // ====================================================================
 void MainWindow::on_save() {
     sync_fields_to_struct();
@@ -876,7 +734,7 @@ void MainWindow::on_save() {
         "Config files (*.conf);;All files (*)");
     if (filename.isEmpty()) return;
 
-    if (save_config(filename.toStdString(), m_content, m_question))
+    if (m_backend->saveConfig(filename))
         QMessageBox::information(this, "保存成功", "配置已保存到 " + filename);
     else
         QMessageBox::warning(this, "保存失败", "无法写入文件 " + filename);
@@ -884,7 +742,6 @@ void MainWindow::on_save() {
 
 // ====================================================================
 // 加载配置
-// 用 QFileDialog 选择文件，加载后同步控件和聊天面板
 // ====================================================================
 void MainWindow::on_load() {
     QString filename = QFileDialog::getOpenFileName(this,
@@ -892,9 +749,9 @@ void MainWindow::on_load() {
         "Config files (*.conf);;All files (*)");
     if (filename.isEmpty()) return;
 
-    if (load_config(filename.toStdString(), m_content, m_question)) {
-        sync_struct_to_fields();            // 控件更新
-        load_history_to_chat();             // 聊天面板更新
+    if (m_backend->loadConfig(filename)) {
+        sync_struct_to_fields();
+        load_history_to_chat();
         QMessageBox::information(this, "加载成功", "配置已从 " + filename + " 加载");
     } else {
         QMessageBox::warning(this, "加载失败", "无法读取文件 " + filename);
@@ -907,7 +764,7 @@ void MainWindow::on_load() {
 void MainWindow::on_prompt() {
     sync_fields_to_struct();
 
-    QString prompt = QString::fromStdString(content_creat(m_content));
+    QString prompt = m_backend->buildSystemPrompt();
 
     QDialog dlg(this);
     dlg.setWindowTitle("系统提示词（System Prompt）");
@@ -937,13 +794,13 @@ void MainWindow::on_settings() {
     QFormLayout *form = new QFormLayout(&dlg);
 
     // API Key（密码模式，不显示明文）
-    QLineEdit *api_key = new QLineEdit(QString::fromStdString(m_question.api_key));
+    QLineEdit *api_key = new QLineEdit(QString::fromStdString(m_backend->question().api_key));
     api_key->setEchoMode(QLineEdit::Password);
     api_key->setPlaceholderText("sk-xxxxxxxxxxxxxxxx");
     form->addRow("API Key：", api_key);
 
     // Base URL
-    QLineEdit *base_url = new QLineEdit(QString::fromStdString(m_question.base_url));
+    QLineEdit *base_url = new QLineEdit(QString::fromStdString(m_backend->question().base_url));
     base_url->setPlaceholderText("https://api.deepseek.com");
     form->addRow("Base URL：", base_url);
 
@@ -953,8 +810,7 @@ void MainWindow::on_settings() {
     model->addItem("deepseek-v4-pro");
     model->addItem("deepseek-chat (已弃用)");
     model->addItem("deepseek-reasoner (已弃用)");
-    // 回显当前值
-    int idx = model->findText(QString::fromStdString(m_question.model),
+    int idx = model->findText(QString::fromStdString(m_backend->question().model),
                               Qt::MatchContains);
     if (idx >= 0) model->setCurrentIndex(idx);
     form->addRow("模型：", model);
@@ -962,11 +818,12 @@ void MainWindow::on_settings() {
     // Reasoning Effort
     QComboBox *reasoning = new QComboBox;
     reasoning->addItems({"", "low", "medium", "high"});
-    reasoning->setCurrentText(QString::fromStdString(m_question.reasoning_effort));
+    reasoning->setCurrentText(QString::fromStdString(m_backend->question().reasoning_effort));
     form->addRow("Reasoning Effort：", reasoning);
 
     // Thinking Type
-    QLineEdit *thinking = new QLineEdit(QString::fromStdString(m_question.extra_body.thinking_type));
+    QLineEdit *thinking = new QLineEdit(
+        QString::fromStdString(m_backend->question().extra_body.thinking_type));
     thinking->setPlaceholderText("enabled");
     form->addRow("Thinking Type：", thinking);
 
@@ -979,28 +836,24 @@ void MainWindow::on_settings() {
     connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
 
     if (dlg.exec() == QDialog::Accepted) {
-        // ---- 检查弃用模型 ----
         QString model_text = model->currentText();
         if (model_text.contains("已弃用")) {
             QMessageBox::warning(this, "模型已弃用",
                 "deepseek-chat 和 deepseek-reasoner 将于 2026-07-24 后不可用。\n"
                 "建议使用 deepseek-v4-flash 或 deepseek-v4-pro。");
-            // 提取纯模型名
             model_text = model_text.section(" ", 0, 0);
         }
 
-        // 写回结构体
-        m_question.api_key                = api_key->text().toStdString();
-        m_question.base_url               = base_url->text().toStdString();
-        m_question.model                  = model_text.toStdString();
-        m_question.reasoning_effort        = reasoning->currentText().toStdString();
-        m_question.extra_body.thinking_type = thinking->text().toStdString();
+        auto &q = m_backend->question();
+        q.api_key                = api_key->text().toStdString();
+        q.base_url               = base_url->text().toStdString();
+        q.model                  = model_text.toStdString();
+        q.reasoning_effort        = reasoning->currentText().toStdString();
+        q.extra_body.thinking_type = thinking->text().toStdString();
 
-        // 更新发送按钮状态
-        m_send_btn->setEnabled(!m_question.api_key.empty());
+        m_send_btn->setEnabled(m_backend->hasApiKey());
 
-        // 自动保存
-        save_config("role.conf", m_content, m_question);
+        m_backend->saveConfig("role.conf");
         update_status_bar();
     }
 }
@@ -1014,10 +867,8 @@ void MainWindow::on_clear_history() {
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
 
     if (ans == QMessageBox::Yes) {
-        m_content.history_communication.clear();
+        m_backend->clearHistory();
         m_chat_display->clear();
-        // 清除 qestion_st 中的消息列表
-        m_question.message.clear();
     }
 }
 
@@ -1031,4 +882,34 @@ void MainWindow::on_about() {
         "使用 Qt6 + C++17 构建。\n\n"
         "模型：deepseek-v4-flash / deepseek-v4-pro\n"
         "API：https://api.deepseek.com");
+}
+
+// ====================================================================
+// Backend 信号响应：AI 回复就绪
+// ====================================================================
+void MainWindow::on_backend_response(const QString &content) {
+    append_chat("AI", content);
+}
+
+// ====================================================================
+// Backend 信号响应：错误发生
+// ====================================================================
+void MainWindow::on_backend_error(const QString &title, const QString &message) {
+    append_chat(title, message);
+}
+
+// ====================================================================
+// Backend 信号响应：busy 状态变化
+// ====================================================================
+void MainWindow::on_backend_busy_changed(bool busy) {
+    m_chat_input->setEnabled(!busy);
+    if (busy) {
+        m_send_btn->setEnabled(false);
+        m_send_btn->setText("发送中…");
+        statusBar()->showMessage("  ⏳ 等待 AI 回复中……");
+    } else {
+        m_send_btn->setText("发送");
+        m_send_btn->setEnabled(m_backend->hasApiKey());
+        update_status_bar();
+    }
 }
