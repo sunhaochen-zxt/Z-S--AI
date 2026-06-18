@@ -37,3 +37,4 @@ electron-app/release/
 # Data (runtime)
 data/
 electron-app/bin/data/
+electron-app/release/
