@@ -7,7 +7,7 @@
 ![Rust](https://img.shields.io/badge/Rust-1.96-000000?style=flat&logo=rust)
 ![Electron](https://img.shields.io/badge/Electron-42-47848F?style=flat&logo=electron)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react)
-![License](https://img.shields.io/badge/License-GPL--3.0-blue?style=flat&logo=gnu)
+![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat)
 
 ---
 
@@ -171,7 +171,7 @@ Z-S--AI/
 
 ## 许可
 
-GPL-3.0 © Z&S-AI
+AGPL-3.0 © Z&S-AI
 
 ---
 

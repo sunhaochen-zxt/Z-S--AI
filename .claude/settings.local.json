@@ -31,7 +31,10 @@
       "Bash(git remote *)",
       "Bash(git checkout *)",
       "Bash(git add *)",
-      "Bash(git commit -m 'ZS-AI v2: 微内核+插件化架构 Rust 后端 + Electron 前端 *)"
+      "Bash(git commit -m 'ZS-AI v2: 微内核+插件化架构 Rust 后端 + Electron 前端 *)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(curl -sL https://www.gnu.org/licenses/agpl-3.0.txt -o \"/home/shc/项目/Z&S-AI/LICENSE\")"
     ]
   }
 }
