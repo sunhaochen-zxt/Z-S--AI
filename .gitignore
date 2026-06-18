@@ -28,6 +28,12 @@ Thumbs.db
 node_modules/
 dist/
 dist-electron/
+dist-renderer/
+
+# Compiled binaries (release)
+electron-app/bin/
+electron-app/release/
 
 # Data (runtime)
 data/
+electron-app/bin/data/
