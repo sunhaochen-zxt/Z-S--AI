@@ -1,12 +1,13 @@
 {
   "name": "zs-ai",
   "version": "0.1.0",
-  "description": "Z&S-AI Electron 前端",
+  "description": "Z&S-AI — 微内核+插件化 AI 角色扮演桌面应用",
   "main": "dist-electron/main/index.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "npx tsc -p tsconfig.main.json && vite build",
+    "preview": "vite preview",
+    "dist": "npm run build && electron-builder --linux"
   },
   "dependencies": {
     "react": "^19.2.7",
@@ -17,7 +18,28 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "electron": "^42.4.0",
+    "electron-builder": "^26.15.3",
     "typescript": "^6.0.3",
     "vite": "^8.0.16"
+  },
+  "build": {
+    "appId": "com.zsai.app",
+    "productName": "ZS-AI",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-renderer/**/*",
+      "dist-electron/**/*",
+      "bin/**/*"
+    ],
+    "extraResources": [
+      { "from": "bin", "to": "bin" }
+    ],
+    "linux": {
+      "target": ["AppImage"],
+      "icon": null,
+      "category": "Utility"
+    }
   }
 }

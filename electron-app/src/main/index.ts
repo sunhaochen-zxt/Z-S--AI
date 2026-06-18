@@ -4,11 +4,13 @@ import { spawn, ChildProcess } from 'child_process';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-// 项目根目录（electron-app 的父目录）
-const PROJECT_ROOT = join(__dirname, '..', '..', '..');
-const SERVER_PATH = join(PROJECT_ROOT, 'target', 'debug', 'server');
+// 路径：开发模式用项目目录，生产模式用 electron-builder 打包的 resources
+const isDev = !app.isPackaged;
+const PROJECT_ROOT = isDev ? join(__dirname, '..', '..', '..') : process.resourcesPath;
+const BIN_DIR = isDev ? join(PROJECT_ROOT, 'electron-app', 'bin') : join(process.resourcesPath, 'bin');
+const SERVER_PATH = join(BIN_DIR, 'zsai-server');
 const RENDERER_DIST = join(__dirname, '..', '..', 'dist-renderer', 'index.html');
-const CONFIG_PATH = join(PROJECT_ROOT, 'config.example.toml');
+const CONFIG_PATH = join(BIN_DIR, 'config.toml');
 
 let mainWindow: BrowserWindow | null = null;
 let backendProcess: ChildProcess | null = null;
@@ -27,7 +29,7 @@ function startBackend(): Promise<number> {
 
     backendProcess = spawn(SERVER_PATH, [CONFIG_PATH], {
       env: { ...process.env },
-      cwd: PROJECT_ROOT,
+      cwd: BIN_DIR,  // 工作目录设为 bin/，data/ 等相对路径都从这里解析
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
