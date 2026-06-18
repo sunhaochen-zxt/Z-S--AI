@@ -1,0 +1,64 @@
+# ZS-AI 默认配置文件
+# 复制为 config.toml 并修改以自定义行为
+
+# ============================================================
+# 热加载设置
+# ============================================================
+[hot_reload]
+enabled = true
+plugin_dir = "./target/debug"
+delay_ms = 100
+
+# ============================================================
+# 阶段定义
+#   order: 阶段执行顺序
+#   error_stage: abort 时跳转的目标阶段（必须在 order 中存在）
+# ============================================================
+[stages]
+order = ["preprocess", "validate", "build_prompt", "api_call", "postprocess"]
+error_stage = "postprocess"
+
+[stages.preprocess]
+timeout_ms = 5000
+
+[stages.api_call]
+timeout_ms = 30000
+
+# ============================================================
+# 全局默认配置
+# ============================================================
+[session]
+default_character = "./data/characters/libai.json"
+
+[api]
+api_type = "deepseek"
+api_key = ""                              # 空 = 读环境变量 DEEPSEEK_API_KEY
+base_url = "https://api.deepseek.com"
+model = "deepseek-v4-flash"
+stream = false
+
+[history]
+save_directory = "./data/history"
+max_context_tokens = 32768
+save_on_every_message = true
+
+# ============================================================
+# 插件专属配置（键名对应插件的 metadata().name）
+# ============================================================
+[plugins.character_card]
+default_card_path = "./data/characters/libai.json"
+
+[plugins.api_client]
+api_type = "deepseek"
+timeout_seconds = 30
+max_retries = 2
+reasoning_effort = "medium"
+thinking_type = ""
+
+[plugins.token_counter]
+model_override = ""
+
+[plugins.history]
+save_directory = "./data/history"
+max_tokens = 32768
+save_on_message = true

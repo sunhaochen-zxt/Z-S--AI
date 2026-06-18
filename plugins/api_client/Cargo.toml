@@ -1,0 +1,15 @@
+[package]
+name = "plugin-api-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "ZS-AI API 客户端插件：DeepSeek / OpenAI 兼容 API 调用"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zsai-core = { path = "../../core" }
+reqwest = { version = "0.12", features = ["json", "blocking", "stream"] }
+serde_json = "1"
+tracing = "0.1"

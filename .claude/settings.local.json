@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/shc/项目/**)",
+      "Bash(S-AI/)",
+      "Bash(S-AI/ -maxdepth 2 -type f -name \"*.md\" -o -name \"*.json\" -o -name \"*.yaml\" -o -name \"*.yml\" -o -name \"*.toml\" -o -name \"*.cfg\" -o -name \"*.ini\")",
+      "Bash(S-AI/ -maxdepth 3 -type d)",
+      "Bash(npm --version)",
+      "Bash(npx --version)",
+      "Bash(cmake --version)",
+      "Bash(gcc --version)",
+      "Bash(g++ --version)",
+      "Bash(rustup target *)",
+      "Bash(cargo install *)",
+      "Bash(pkg-config --version)",
+      "Bash(npm install *)",
+      "Bash(electron --version)",
+      "Bash(npx electron *)",
+      "Bash(npm ls *)",
+      "Bash(cargo build *)",
+      "Bash(sed -i 's/Arc<RwLock<dyn Plugin>>/PluginRef/g' core/src/pipeline.rs)",
+      "Bash(sed -i 's/std::sync::{Arc, RwLock}/std::sync::Arc/g' core/src/pipeline.rs)",
+      "Bash(cargo test *)",
+      "Bash(cargo clippy *)",
+      "Bash(pkill -f \"target/debug/server\")",
+      "Bash(./target/debug/server)",
+      "Bash(curl -s http://127.0.0.1:9786/api/debug/card)",
+      "Bash(python3 -m json.tool)",
+      "Bash(kill %1)",
+      "Bash(wait)",
+      "Bash(git remote *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'ZS-AI v2: 微内核+插件化架构 Rust 后端 + Electron 前端 *)"
+    ]
+  }
+}

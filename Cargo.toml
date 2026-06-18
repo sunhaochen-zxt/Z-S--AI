@@ -1,0 +1,20 @@
+[workspace]
+members = [
+    "core",
+    "plugins/test_stub",
+    "plugins/character_card",
+    "plugins/prompt_builder",
+    "plugins/api_client",
+    "plugins/stream_parser",
+    "plugins/history",
+    "plugins/token_counter",
+    "server",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+authors = ["Z&S-AI"]
+description = "ZS-AI: 微内核+插件化 AI 角色扮演桌面应用"

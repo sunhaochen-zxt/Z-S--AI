@@ -1,0 +1,26 @@
+[package]
+name = "zsai-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "ZS-AI 微内核：Context、Plugin trait、流水线编排、动态加载、热重载"
+
+[dependencies]
+# 序列化
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# 配置解析
+toml = "0.8"
+
+# 动态库加载
+libloading = "0.8"
+
+# 文件监听（热重载）
+notify = { version = "7", default-features = false, features = ["macos_fsevent"] }
+
+# 错误处理
+thiserror = "2"
+
+# 日志
+tracing = "0.1"

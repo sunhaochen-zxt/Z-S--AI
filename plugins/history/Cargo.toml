@@ -1,0 +1,15 @@
+[package]
+name = "plugin-history"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "ZS-AI 历史记录插件：对话历史读写、上下文裁剪"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zsai-core = { path = "../../core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"

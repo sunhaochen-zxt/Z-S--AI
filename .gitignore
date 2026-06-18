@@ -1,0 +1,33 @@
+# Build artifacts
+target/
+
+# Config with secrets
+config.toml
+
+# Old project artifacts
+build/
+CMakeFiles/
+*.o
+*.d
+a.out
+CMakeLists.txt.user
+role.conf
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Electron
+node_modules/
+dist/
+dist-electron/
+
+# Data (runtime)
+data/
